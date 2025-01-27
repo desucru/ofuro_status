@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お風呂掃除管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Heroiconsを追加 -->
+    <script src="https://unpkg.com/@heroicons/outline@2.0.18/24/check-circle.js"></script>
+    <script src="https://unpkg.com/@heroicons/outline@2.0.18/24/x-circle.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-4 min-h-screen">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl mx-auto">
+            <!-- 左側: ステータスと記録フォーム -->
+            <div class="space-y-4">
+                <!-- ステータスカード -->
+                <div class="bg-white rounded-lg shadow-lg p-4">
+                    <h1 class="text-2xl font-bold text-gray-800 mb-4">お風呂掃除状況</h1>
+                    
+                    <!-- 大きなステータス表示 -->
+                    <div class="{% if latest_record and latest_record.is_cleaned %}bg-green-50 border-green-200{% else %}bg-red-50 border-red-200{% endif %} rounded-lg p-6 mb-4 border-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                {% if latest_record %}
+                                    <div class="flex items-center gap-3 mb-3">
+                                        <div class="{% if latest_record.is_cleaned %}text-green-500{% else %}text-red-500{% endif %} text-5xl">
+                                            {% if latest_record.is_cleaned %}
+                                                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                            {% else %}
+                                                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <h2 class="text-2xl font-bold {% if latest_record.is_cleaned %}text-green-700{% else %}text-red-700{% endif %}">
+                                                {% if latest_record.is_cleaned %}清掃済み{% else %}未清掃{% endif %}
+                                            </h2>
+                                            <p class="text-sm {% if latest_record.is_cleaned %}text-green-600{% else %}text-red-600{% endif %}">
+                                                {% if latest_record.is_cleaned %}
+                                                    {{ latest_record.local_time.strftime('%m月%d日 %H:%M') }}に清掃完了
+                                                {% else %}
+                                                    {{ latest_record.local_time.strftime('%m月%d日 %H:%M') }}に未清掃を記録
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="space-y-1">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-gray-600">記録日時:</span>
+                                            <span class="text-xl font-bold {% if latest_record.is_cleaned %}text-green-600{% else %}text-red-600{% endif %}">
+                                                {{ latest_record.local_time.strftime('%m月%d日 %H:%M') }}
+                                            </span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-gray-600">担当者:</span>
+                                            <span class="font-semibold text-gray-800">{{ latest_record.user }}</span>
+                                        </div>
+                                        {% if last_cleaned %}
+                                            <div class="mt-3 pt-3 border-t border-gray-200">
+                                                <p class="text-sm text-gray-600">最終清掃: {{ last_cleaned.local_time.strftime('%m月%d日 %H:%M') }} by {{ last_cleaned.user }}</p>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <div class="flex items-center gap-3">
+                                        <div class="text-gray-400 text-5xl">
+                                            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h2 class="text-2xl font-bold text-gray-700">状態不明</h2>
+                                            <p class="text-sm text-gray-600">まだ記録がありません</p>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 記録フォーム -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="flex flex-col gap-3">
+                            <div class="flex items-center gap-2">
+                                <select id="userSelect" class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                    <option value="">記録者を選択 (必須)</option>
+                                    {% for user in users %}
+                                        <option value="{{ user }}">{{ user }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="flex items-center justify-between gap-2 p-3 border border-gray-200 rounded-lg">
+                                <span class="text-sm font-medium text-gray-700">掃除状態:</span>
+                                <button
+                                    id="toggleButton"
+                                    onclick="toggleCleaningState()"
+                                    class="relative inline-flex h-10 w-32 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out bg-green-500 hover:bg-green-600"
+                                    role="switch"
+                                    aria-checked="true"
+                                >
+                                    <div id="toggleText" class="pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-medium text-white">
+                                        清掃済み
+                                    </div>
+                                    <div id="toggleSlider" class="pointer-events-none absolute left-0 inline-block h-9 w-9 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0"></div>
+                                </button>
+                            </div>
+                            <textarea
+                                id="notesInput"
+                                placeholder="メモ (任意)"
+                                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md h-12 resize-none"
+                            ></textarea>
+                            <button
+                                onclick="handleSubmit()"
+                                class="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-blue-600 transition-colors"
+                            >
+                                記録を追加
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右側: 履歴リスト -->
+            <div class="bg-white rounded-lg shadow-lg p-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">清掃履歴</h2>
+                <div class="space-y-3">
+                    {% for record in records %}
+                        <div class="border-b border-gray-200 pb-3 last:border-0">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <div class="{% if record.is_cleaned %}text-green-500{% else %}text-red-500{% endif %} w-5 h-5">
+                                            {% if record.is_cleaned %}
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                            {% else %}
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                            {% endif %}
+                                        </div>
+                                        <p class="text-primary font-medium">
+                                            {{ record.local_time.strftime('%m月%d日 %H:%M') }}
+                                        </p>
+                                        <span class="text-sm text-gray-600">by {{ record.user }}</span>
+                                    </div>
+                                    {% if record.notes %}
+                                        <p class="text-sm text-gray-600 mt-1">{{ record.notes }}</p>
+                                    {% endif %}
+                                </div>
+                                <button
+                                    onclick="toggleRecord({{ record.id }})"
+                                    class="{% if record.is_active %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-600{% endif %} text-xs px-2 py-1 rounded-full"
+                                >
+                                    {% if record.is_active %}有効{% else %}無効{% endif %}
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isCleanedState = true;
+
+        function toggleCleaningState() {
+            isCleanedState = !isCleanedState;
+            const toggleButton = document.getElementById('toggleButton');
+            const toggleText = document.getElementById('toggleText');
+            const toggleSlider = document.getElementById('toggleSlider');
+
+            if (isCleanedState) {
+                toggleButton.classList.remove('bg-red-500', 'hover:bg-red-600');
+                toggleButton.classList.add('bg-green-500', 'hover:bg-green-600');
+                toggleText.textContent = '清掃済み';
+                toggleSlider.classList.remove('translate-x-[5.75rem]');
+                toggleSlider.classList.add('translate-x-0');
+            } else {
+                toggleButton.classList.remove('bg-green-500', 'hover:bg-green-600');
+                toggleButton.classList.add('bg-red-500', 'hover:bg-red-600');
+                toggleText.textContent = '未清掃';
+                toggleSlider.classList.remove('translate-x-0');
+                toggleSlider.classList.add('translate-x-[5.75rem]');
+            }
+        }
+
+        async function handleSubmit() {
+            const userSelect = document.getElementById('userSelect');
+            const notesInput = document.getElementById('notesInput');
+
+            if (!userSelect.value) {
+                alert('記録者を選択してください');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('user', userSelect.value);
+            formData.append('notes', notesInput.value);
+            formData.append('is_cleaned', isCleanedState);
+
+            try {
+                const response = await fetch('/add_record', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (response.ok) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function toggleRecord(recordId) {
+            try {
+                const response = await fetch(`/toggle_record/${recordId}`, {
+                    method: 'POST',
+                });
+                if (response.ok) {
+                    window.location.reload();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html> 
