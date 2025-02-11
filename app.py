@@ -11,6 +11,19 @@ db = SQLAlchemy(app)
 USERS = ['user1', 'user2', 'user3']
 JST = pytz.timezone('Asia/Tokyo')
 
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Robots-Tag'] = 'noindex, nofollow'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
+
+@app.route('/robots.txt')
+def robots():
+    return """User-agent: *
+Disallow: /"""
+
 class CleaningRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     cleaned_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(JST))
