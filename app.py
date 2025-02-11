@@ -68,5 +68,54 @@ def toggle_record(record_id):
     db.session.commit()
     return jsonify({'success': True, 'is_active': record.is_active})
 
+@app.route('/api/status', methods=['GET'])
+def get_status():
+    # 最新の有効な記録を取得
+    latest_record = CleaningRecord.query.filter_by(is_active=True).order_by(CleaningRecord.cleaned_at.desc()).first()
+    
+    if not latest_record:
+        return jsonify({
+            'status': 'unknown',
+            'last_cleaned': None,
+            'last_user': None,
+            'notes': None
+        })
+
+    return jsonify({
+        'status': 'cleaned' if latest_record.is_cleaned else 'dirty',
+        'last_cleaned': latest_record.local_time.isoformat(),
+        'last_user': latest_record.user,
+        'notes': latest_record.notes,
+        'is_recent': latest_record.is_recent
+    })
+
+@app.route('/api/status', methods=['POST'])
+def update_status():
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    user = data.get('user')
+    if not user or user not in USERS:
+        return jsonify({'error': 'Invalid user'}), 400
+    
+    is_cleaned = data.get('is_cleaned', True)
+    notes = data.get('notes', '')
+    
+    new_record = CleaningRecord(
+        user=user,
+        is_cleaned=is_cleaned,
+        notes=notes
+    )
+    
+    db.session.add(new_record)
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'success',
+        'record_id': new_record.id
+    })
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
